@@ -1,0 +1,61 @@
+pipeline {
+    agent any
+
+    environment {
+        REGISTRY = 'localhost:5000'
+        APP_NAME = 'myapp'
+        IMAGE    = "${REGISTRY}/${APP_NAME}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build & Test') {
+            steps {
+                dir('app') {
+                    sh 'mvn test'
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                sh """
+                    docker build -t ${IMAGE}:${BUILD_NUMBER} ./app
+                    docker tag  ${IMAGE}:${BUILD_NUMBER} ${IMAGE}:latest
+                """
+            }
+        }
+
+        stage('Push to Registry') {
+            steps {
+                sh """
+                    docker push ${IMAGE}:${BUILD_NUMBER}
+                    docker push ${IMAGE}:latest
+                """
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh """
+                    kubectl set image deployment/${APP_NAME} ${APP_NAME}=${IMAGE}:${BUILD_NUMBER}
+                    kubectl rollout status deployment/${APP_NAME} --timeout=120s
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline succeeded. Image: ${IMAGE}:${BUILD_NUMBER}"
+        }
+        failure {
+            echo "Pipeline failed."
+        }
+    }
+}

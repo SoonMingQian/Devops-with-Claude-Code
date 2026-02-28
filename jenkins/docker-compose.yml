@@ -1,0 +1,29 @@
+services:
+  jenkins:
+    build: .
+    container_name: jenkins
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      # Gives Jenkins access to the host Docker daemon for build/push
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Gives Jenkins access to your local kubeconfig (read-only)
+      - ~/.kube:/var/jenkins_home/.kube:ro
+    environment:
+      - KUBECONFIG=/var/jenkins_home/.kube/config
+    restart: unless-stopped
+
+  registry:
+    image: registry:2
+    container_name: registry
+    ports:
+      - "5000:5000"
+    volumes:
+      - registry_data:/var/lib/registry
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:
+  registry_data:
