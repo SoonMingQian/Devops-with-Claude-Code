@@ -10,11 +10,14 @@ services:
       # Gives Jenkins access to the host Docker daemon for build/push
       - /var/run/docker.sock:/var/run/docker.sock
       # Gives Jenkins access to your local kubeconfig (read-only)
-      - ~/.kube:/var/jenkins_home/.kube:ro
+      - ~/.kube/config-jenkins:/var/jenkins_home/.kube/config:ro
     environment:
       - KUBECONFIG=/var/jenkins_home/.kube/config
     group_add:
       - "0"
+    networks:
+      - default
+      - minikube
     restart: unless-stopped
 
   registry:
@@ -29,3 +32,8 @@ services:
 volumes:
   jenkins_home:
   registry_data:
+
+networks:
+  default: {}
+  minikube:
+    external: true

@@ -2,9 +2,11 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = 'localhost:5000'
-        APP_NAME = 'myapp'
-        IMAGE    = "${REGISTRY}/${APP_NAME}"
+        REGISTRY     = 'localhost:5000'
+        K8S_REGISTRY = '192.168.49.4:5000'
+        APP_NAME     = 'myapp'
+        IMAGE        = "${REGISTRY}/${APP_NAME}"
+        K8S_IMAGE    = "${K8S_REGISTRY}/${APP_NAME}"
     }
 
     stages {
@@ -43,7 +45,7 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh """
-                    kubectl set image deployment/${APP_NAME} ${APP_NAME}=${IMAGE}:${BUILD_NUMBER}
+                    kubectl set image deployment/${APP_NAME} ${APP_NAME}=${K8S_IMAGE}:${BUILD_NUMBER}
                     kubectl rollout status deployment/${APP_NAME} --timeout=120s
                 """
             }
