@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: myapp-alerts
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: myapp
+      rules:
+        - alert: MyAppDown
+          expr: absent(up{job="myapp-service"}) or up{job="myapp-service"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "myapp is down"
+            description: "myapp has been unreachable for more than 1 minute."
