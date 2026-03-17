@@ -230,8 +230,102 @@ kubectl scale deployment myapp --replicas=1
 
 ---
 
+## Alertmanager — Email Notifications
+
+### Why Alertmanager is separate from Prometheus
+
+| Problem | Alertmanager handles it |
+|---|---|
+| Same alert fires 100 times in 1 minute | **Grouping** — sends 1 notification, not 100 |
+| App flaps up/down repeatedly | **Inhibition** — suppresses repeat alerts |
+| Maintenance window | **Silencing** — mute alerts temporarily |
+
+Prometheus detects problems. Alertmanager decides who to notify, how, and when.
+
+### Configure email notifications via Helm
+
+Create `jenkins/alertmanager-values.yaml`:
+```yaml
+alertmanager:
+  config:
+    global:
+      smtp_smarthost: 'smtp.gmail.com:587'
+      smtp_from: 'sender@gmail.com'
+      smtp_auth_username: 'sender@gmail.com'
+      smtp_auth_password: 'YOUR_GMAIL_APP_PASSWORD'
+      smtp_require_tls: true
+
+    route:
+      group_by: ['alertname']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 1h
+      receiver: 'email-alert'
+      routes:
+        - matchers:
+            - alertname = "Watchdog"
+          receiver: 'null'
+
+    receivers:
+      - name: 'null'
+      - name: 'email-alert'
+        email_configs:
+          - to: 'receiver@gmail.com'
+            send_resolved: true
+```
+
+> **Gmail:** Use an App Password, not your regular password.
+> Go to Google Account → Security → 2-Step Verification → App passwords.
+
+Apply with Helm:
+```bash
+helm upgrade prometheus prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --reuse-values \
+  -f jenkins/alertmanager-values.yaml
+```
+
+### Access Alertmanager UI
+
+```bash
+kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-alertmanager 9093:9093
+```
+
+Open `http://localhost:9093`
+
+Check actual rendered config (what Alertmanager really uses):
+```bash
+kubectl exec -n monitoring alertmanager-prometheus-kube-prometheus-alertmanager-0 -- \
+  sh -c 'cat /etc/alertmanager/config_out/alertmanager.env.yaml'
+```
+
+Check all alerts via API:
+```
+http://localhost:9093/api/v2/alerts
+```
+
+### Common gotchas
+
+**Must explicitly define `null` receiver:**
+```yaml
+receivers:
+  - name: 'null'   # ← required even though null is built-in
+  - name: 'email-alert'
+    ...
+```
+If missing, Prometheus Operator throws: `undefined receiver "null" used in route` and falls back to default config (everything goes to null).
+
+**Verify Operator reconciled successfully:**
+```bash
+kubectl get alertmanager -n monitoring prometheus-kube-prometheus-alertmanager -o yaml
+# Look for: type: Reconciled / status: "True"
+```
+
+**`send_resolved: true`** — sends a second email when the alert clears, not just when it fires.
+
+---
+
 ## What's Next
 
-- **Alertmanager** — route firing alerts to Slack, email, or PagerDuty
 - **Custom metrics** — add business-level metrics to your app (e.g. count `/hello` calls)
 - **Grafana dashboards** — build a multi-panel health dashboard for your app

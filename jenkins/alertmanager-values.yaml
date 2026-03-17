@@ -1,0 +1,26 @@
+alertmanager:
+  config:
+    global:
+      smtp_smarthost: 'smtp.gmail.com:587'
+      smtp_from: 'qianbot03@gmail.com'
+      smtp_auth_username: 'qianbot03@gmail.com'
+      smtp_auth_password: 'jcue ywhs swvm vxco'
+      smtp_require_tls: true
+
+    route:
+      group_by: ['alertname']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 1h
+      receiver: 'email-alert'
+      routes:
+        - matchers:
+            - alertname = "Watchdog"
+          receiver: 'null'
+
+    receivers:
+      - name: 'null'
+      - name: 'email-alert'
+        email_configs:
+          - to: 'qianbot01@gmail.com'
+            send_resolved: true
